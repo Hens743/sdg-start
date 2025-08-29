@@ -1,4 +1,4 @@
-# app.py (Final Corrected Version)
+# app.py (Simplified Setup Version)
 import streamlit as st
 import requests
 from deep_translator import GoogleTranslator
@@ -37,60 +37,51 @@ def fetch_brreg_data(org_nr):
         return f"Error: Could not connect to the API. {e}"
 
 # --- STATE MANAGEMENT INITIALIZATION ---
+# We only need to initialize the 'setup_complete' flag now.
+# Other variables will be created dynamically after the API call.
 if 'setup_complete' not in st.session_state:
     st.session_state.setup_complete = False
-    st.session_state.startup_name = ""
     st.session_state.org_nr = ""
-    st.session_state.business_description = ""
-    st.session_state.mapped_sdgs = {}
-    st.session_state.prioritized_sdgs = []
-    st.session_state.goals_and_kpis = {}
-    st.session_state.integration_plan = {}
-    st.session_state.reporting_framework = "Not Selected"
 
 # --- APP LAYOUT AND PAGES ---
 st.set_page_config(page_title="SDG Startup Tool", layout="wide")
 st.sidebar.title("🚀 SDG Tool Navigation")
 
 # ==============================================================================
-# PAGE 1: SETUP PAGE
+# PAGE 1: SIMPLIFIED SETUP PAGE
 # ==============================================================================
 if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
-    st.write("Enter your startup's details manually or fetch them from Brønnøysundregistrene.")
+    st.write("Enter your company's Norwegian Organisation Number to begin.")
 
-    # --- Callback Functions ---
-    def update_state_from_api():
+    # --- Callback function to fetch data and complete setup in one step ---
+    def start_analysis():
         if st.session_state.org_nr:
             with st.spinner("Fetching and translating data..."):
                 fetched_data = fetch_brreg_data(st.session_state.org_nr)
                 if isinstance(fetched_data, dict):
+                    # Populate all necessary state variables
                     st.session_state.startup_name = fetched_data['name']
                     st.session_state.business_description = fetched_data['description_en']
-                    st.success("Information fetched and translated successfully!")
-                    st.info(f"**Original Description (Norwegian):** {fetched_data['description_no']}")
+                    st.session_state.mapped_sdgs = {}
+                    st.session_state.prioritized_sdgs = []
+                    st.session_state.goals_and_kpis = {}
+                    st.session_state.integration_plan = {}
+                    st.session_state.reporting_framework = "Not Selected"
+                    
+                    # Set the flag to move to the main app
+                    st.session_state.setup_complete = True
                 else:
                     st.error(fetched_data)
         else:
-            st.warning("Please enter an Organisation Number before fetching.")
+            st.warning("Please enter an Organisation Number.")
 
-    # NEW: Callback for the "Save and Continue" button
-    def complete_setup():
-        if st.session_state.startup_name and st.session_state.business_description:
-            st.session_state.setup_complete = True
-        else:
-            st.error("Please ensure Startup Name and Business Description are filled in.")
-
-    # --- Widget Definitions ---
-    st.text_input("Startup Name", key="startup_name")
+    # --- Simplified Widget Definitions ---
     st.text_input("Norwegian Organisation Number", key="org_nr")
     st.caption("Enter the 9-digit number without any spaces or letters.")
-    st.button("🤖 Fetch & Translate Information", on_click=update_state_from_api)
-    st.info("**Tip:** Use clear keywords about your industry, products, and services.")
-    st.text_area("Business Description (in English for SDG Mapping)", key="business_description", height=150)
     
-    # UPDATED: "Save and Continue" button now uses the callback
-    st.button("Save and Continue", on_click=complete_setup)
+    # This single button now handles everything
+    st.button("Find Company & Start Analysis", on_click=start_analysis)
 
 # ==============================================================================
 # MAIN APPLICATION PAGES
@@ -110,6 +101,7 @@ else:
         st.write("Navigate through the steps using the menu on the left.")
         st.info(f"**Current Business Description:** *'{st.session_state.business_description}'*")
 
+    # ... (The rest of the pages: Map SDGs, Prioritize, etc., remain exactly the same) ...
     elif page == "1. Map SDGs":
         st.header("1. SDG Mapping & Relevance Assessment")
         description_words = st.session_state.business_description.lower().split()
