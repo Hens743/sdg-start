@@ -1,4 +1,4 @@
-# app.py (Final Version)
+# app.py (Final Corrected Version)
 import streamlit as st
 import requests
 from deep_translator import GoogleTranslator
@@ -59,6 +59,7 @@ if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
     st.write("Enter your startup's details manually or fetch them from Brønnøysundregistrene.")
 
+    # --- Callback Functions ---
     def update_state_from_api():
         if st.session_state.org_nr:
             with st.spinner("Fetching and translating data..."):
@@ -73,21 +74,23 @@ if not st.session_state.setup_complete:
         else:
             st.warning("Please enter an Organisation Number before fetching.")
 
+    # NEW: Callback for the "Save and Continue" button
+    def complete_setup():
+        if st.session_state.startup_name and st.session_state.business_description:
+            st.session_state.setup_complete = True
+        else:
+            st.error("Please ensure Startup Name and Business Description are filled in.")
+
+    # --- Widget Definitions ---
     st.text_input("Startup Name", key="startup_name")
     st.text_input("Norwegian Organisation Number", key="org_nr")
     st.caption("Enter the 9-digit number without any spaces or letters.")
     st.button("🤖 Fetch & Translate Information", on_click=update_state_from_api)
     st.info("**Tip:** Use clear keywords about your industry, products, and services.")
     st.text_area("Business Description (in English for SDG Mapping)", key="business_description", height=150)
-
-    if st.button("Save and Continue"):
-        if st.session_state.startup_name and st.session_state.business_description:
-            st.session_state.setup_complete = True
-            # CRITICAL FIX: The st.rerun() call is removed from here.
-            # Streamlit will automatically rerun after the button click,
-            # allowing the state change to be safely processed.
-        else:
-            st.error("Please ensure Startup Name and Business Description are filled in.")
+    
+    # UPDATED: "Save and Continue" button now uses the callback
+    st.button("Save and Continue", on_click=complete_setup)
 
 # ==============================================================================
 # MAIN APPLICATION PAGES
@@ -106,7 +109,7 @@ else:
         st.header("Welcome!")
         st.write("Navigate through the steps using the menu on the left.")
         st.info(f"**Current Business Description:** *'{st.session_state.business_description}'*")
-    
+
     elif page == "1. Map SDGs":
         st.header("1. SDG Mapping & Relevance Assessment")
         description_words = st.session_state.business_description.lower().split()
