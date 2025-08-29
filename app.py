@@ -207,14 +207,49 @@ else:
 
     elif page == "6. Generate Report":
         st.header("📄 Final SDG Impact Report")
+
+        # NEW: Add a dynamic information box based on the selected framework
+        st.subheader("5. Reporting Framework Alignment")
+        framework = st.session_state.get("reporting_framework", "Not Selected")
+        st.markdown(f"**Framework Selected:** {framework}")
+
+        if framework == "GRI":
+            st.info(
+                "**GRI Standards:** This report is aligned with the Global Reporting Initiative (GRI), "
+                "which focuses on impact-oriented reporting for a multi-stakeholder audience. "
+                "[Learn more about GRI](https://www.globalreporting.org/)"
+            )
+        elif framework == "IRIS":
+            st.info(
+                "**IRIS+ Metrics:** This report is aligned with IRIS+, which provides a catalog of generally accepted "
+                "performance metrics that leading impact investors use to measure social, environmental, and financial success. "
+                "[Learn more about IRIS+](https://iris.thegiin.org/)"
+            )
+        elif framework == "B Corp":
+            st.info(
+                "**B Corp Framework:** This report is aligned with the B Corp framework, which measures a company’s "
+                "entire social and environmental performance, from supply chain to charitable giving. "
+                "[Learn more about B Corp](https://www.bcorporation.net/)"
+            )
+        elif framework == "SDG Compass":
+            st.info(
+                "**SDG Compass:** This report is aligned with the SDG Compass, which provides guidance for companies on how they "
+                "can align their strategies as well as measure and manage their contribution to the SDGs. "
+                "[Learn more about the SDG Compass](https://sdgcompass.org/)"
+            )
+        
+        st.markdown("---") # Visual separator
+
         st.subheader("1. Relevant SDGs")
         if st.session_state.mapped_sdgs:
             for code, title in st.session_state.mapped_sdgs.items(): st.markdown(f"- **{code}:** {title}")
         else: st.info("Not yet defined.")
+
         st.subheader("2. Prioritized Impact Areas")
         if st.session_state.mapped_sdgs:
-            for code, title in st.session_state.mapped_sdgs.items(): st.markdown(f"- {code}: {title}")
+            for code, title in st.session_state.mapped_sdgs.items(): st.markdown(f"- **{code}:** {title}")
         else: st.info("Not yet defined.")
+
         st.subheader("3. Goals and KPIs")
         if st.session_state.goals_and_kpis:
             for code, data in st.session_state.goals_and_kpis.items():
@@ -222,11 +257,10 @@ else:
                 st.markdown(f"  - **Goal:** {data['goal']}")
                 st.markdown(f"  - **KPI:** {data['kpi']}")
         else: st.info("Not yet defined.")
+
         st.subheader("4. Strategy Integration")
         if st.session_state.integration_plan:
             for code, data in st.session_state.integration_plan.items():
                 st.markdown(f"**{data['department']} Department**")
                 st.markdown(f"  - **Action for {code}:** {data['action_item']}")
         else: st.info("Not yet defined.")
-        st.subheader("5. Reporting Framework Alignment")
-        st.markdown(f"- **Framework:** {st.session_state.reporting_framework}")
