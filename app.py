@@ -1,5 +1,6 @@
+# Save this code as app.py
 import streamlit as st
-import requests # New library for making API calls
+import requests # Library for making API calls
 
 # --- Data and Logic ---
 
@@ -27,20 +28,24 @@ SDG_DATA = {
     },
 }
 
-# --- NEW: Function to fetch data from Brønnøysundregistrene ---
+# --- UPDATED: Function to fetch data from Brønnøysundregistrene ---
 def fetch_brreg_data(org_nr):
-    """Fetches business description from the Brønnøysundregistrene API."""
+    """Fetches company name and description from the Brønnøysundregistrene API."""
     if not org_nr.isdigit() or len(org_nr) != 9:
         return "Error: Please enter a valid 9-digit organisation number."
 
     url = f"https://data.brreg.no/enhetsregisteret/api/enheter/{org_nr}"
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10) # Added a timeout for safety
         if response.status_code == 200:
             data = response.json()
+            name = data.get("navn", "Name not found.")
             # The 'formal' (purpose) is often nested. We look for it.
-            purpose = data.get("formal", {}).get("virksomhet", "No official purpose found.")
-            return purpose if purpose else "No official purpose found."
+            purpose = "No official purpose found."
+            if "formal" in data and "virksomhet" in data["formal"]:
+                 purpose = data["formal"]["virksomhet"]
+            
+            return {"name": name, "description": purpose}
         elif response.status_code == 404:
             return "Error: Organisation number not found."
         else:
@@ -69,21 +74,32 @@ if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
     st.write("Enter your startup's details manually or fetch them from Brønnøysundregistrene.")
 
-    # --- NEW: Updated setup section with API integration ---
-    st.session_state.startup_name = st.text_input("Startup Name", st.session_state.startup_name)
-    st.session_state.org_nr = st.text_input("Norwegian Organisation Number (9 digits)", st.session_state.org_nr)
+    # --- UPDATED: setup section with better UI ---
+    st.session_state.startup_name = st.text_input(
+        "Startup Name",
+        st.session_state.startup_name
+    )
+    
+    st.session_state.org_nr = st.text_input(
+        "Norwegian Organisation Number",
+        st.session_state.org_nr
+    )
+    # NEW: Added caption for format guidance
+    st.caption("Enter the 9-digit number without any spaces or letters.")
 
     if st.button("🤖 Fetch Information from Brønnøysundregistrene"):
         with st.spinner("Fetching data..."):
-            fetched_description = fetch_brreg_data(st.session_state.org_nr)
-            if "Error:" not in fetched_description:
-                st.session_state.business_description = fetched_description
+            fetched_data = fetch_brreg_data(st.session_state.org_nr)
+            # Check if the returned data is a dictionary (success) or string (error)
+            if isinstance(fetched_data, dict):
+                st.session_state.startup_name = fetched_data['name']
+                st.session_state.business_description = fetched_data['description']
                 st.success("Information fetched successfully!")
             else:
-                st.error(fetched_description)
-
+                st.error(fetched_data)
+    
     st.info(
-        "**How to write a good description:** Use clear keywords about your industry, "
+        "**Tip for a good description:** Use clear keywords about your industry, "
         "products, and services (e.g., 'solar energy', 'recycling technology', 'sustainable housing')."
     )
     st.session_state.business_description = st.text_area(
@@ -107,8 +123,6 @@ else:
     st.title(f"SDG Tool for: {st.session_state.startup_name}")
     st.markdown("---")
     
-    # ... (The code for the different pages from the previous version goes here) ...
-    # ... (This part is unchanged) ...
     if page == "🏠 Home":
         st.header("Welcome!")
         st.write("You can navigate through the different steps using the menu on the left.")
