@@ -93,31 +93,20 @@ st.set_page_config(page_title="SDG Startup Tool", layout="wide")
 st.sidebar.title("🚀 SDG Tool Navigation")
 
 # ==============================================================================
-# PAGE 1: SETUP PAGE (REVISED AND CORRECTED)
+# PAGE 1: SETUP PAGE (CORRECTED WITH CALLBACK)
 # ==============================================================================
 if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
     st.write("Enter your startup's details manually or fetch them from Brønnøysundregistrene.")
 
-    # CORRECTED: Use the 'key' parameter to bind widgets directly to the session state.
-    # This ensures that when the state is updated, the widget's value changes automatically.
-    st.text_input(
-        "Startup Name",
-        key="startup_name"
-    )
-    
-    st.text_input(
-        "Norwegian Organisation Number",
-        key="org_nr"
-    )
-    st.caption("Enter the 9-digit number without any spaces or letters.")
-
-    if st.button("🤖 Fetch & Translate Information"):
-        if st.session_state.org_nr: # Check if the org number field is not empty
+    # --- NEW: Callback function to handle the API call and state updates ---
+    def update_state_from_api():
+        """This function is called when the button is clicked."""
+        if st.session_state.org_nr:
             with st.spinner("Fetching and translating data..."):
                 fetched_data = fetch_brreg_data(st.session_state.org_nr)
                 if isinstance(fetched_data, dict):
-                    # This now correctly updates the state, and the widgets above will reflect the change
+                    # Update the session state directly inside the callback
                     st.session_state.startup_name = fetched_data['name']
                     st.session_state.business_description = fetched_data['description_en']
                     st.success("Information fetched and translated successfully!")
@@ -126,6 +115,18 @@ if not st.session_state.setup_complete:
                     st.error(fetched_data)
         else:
             st.warning("Please enter an Organisation Number before fetching.")
+
+    # --- WIDGET DEFINITIONS ---
+    st.text_input("Startup Name", key="startup_name")
+    st.text_input("Norwegian Organisation Number", key="org_nr")
+    st.caption("Enter the 9-digit number without any spaces or letters.")
+
+    # --- BUTTON WITH CALLBACK ---
+    # The button now calls the update_state_from_api function when clicked.
+    st.button(
+        "🤖 Fetch & Translate Information",
+        on_click=update_state_from_api
+    )
     
     st.info(
         "**Tip:** Use clear keywords about your industry, products, and services "
