@@ -1,7 +1,7 @@
 # app.py (Gemini-Powered Version)
 import streamlit as st
 import requests
-import google.generativeai as genai
+from google import genai 
 import json
 from deep_translator import GoogleTranslator
 
@@ -56,7 +56,7 @@ def analyze_sdgs_with_ai(description):
     
     # Configure the model to return JSON
     generation_config = genai.GenerationConfig(response_mime_type="application/json")
-    model = genai.GenerativeModel('gemini-1.5-flash', generation_config=generation_config)
+    model = genai.GenerativeModel('gemini-2.5-flash', generation_config=generation_config)
 
     try:
         response = model.generate_content(prompt)
