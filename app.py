@@ -1,4 +1,4 @@
-# app.py (With Enhanced Company Profile)
+# app.py (With Robust Initialization)
 import streamlit as st
 import requests
 from deep_translator import GoogleTranslator
@@ -20,7 +20,6 @@ def translate_to_english(text, source_lang='no', target_lang='en'):
         st.warning(f"Translation failed: {e}. Using original text.")
         return text
 
-# UPDATED: fetch_brreg_data now gets website, sector, and employee count
 def fetch_brreg_data(org_nr):
     if not org_nr.isdigit() or len(org_nr) != 9: return "Error: Please enter a valid 9-digit organisation number."
     url = f"https://data.brreg.no/enhetsregisteret/api/enheter/{org_nr}"
@@ -28,33 +27,34 @@ def fetch_brreg_data(org_nr):
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         data = response.json()
-        
         name = data.get("navn", "Name not found.")
         description_no = " ".join(data["vedtektsfestetFormaal"]) if "vedtektsfestetFormaal" in data and data["vedtektsfestetFormaal"] else "No official purpose found."
         description_en = translate_to_english(description_no)
-        
-        # Fetching new fields with default values for safety
         website = data.get("hjemmeside", "Not available")
         sector = data.get("naeringskode1", {}).get("beskrivelse", "Not available")
         employees = data.get("antallAnsatte", 0)
-
-        return {
-            "name": name, 
-            "description_no": description_no,
-            "description_en": description_en,
-            "website": website,
-            "sector": sector,
-            "employees": employees
-        }
+        return {"name": name, "description_no": description_no, "description_en": description_en, "website": website, "sector": sector, "employees": employees}
     except requests.exceptions.HTTPError as e:
         return f"Error: Organisation number not found or API error ({e.response.status_code})."
     except requests.exceptions.RequestException as e:
         return f"Error: Could not connect to the API. {e}"
 
-# --- STATE MANAGEMENT INITIALIZATION ---
+# --- UPDATED: Robust State Management Initialization ---
+# We now initialize every key the app will use with a default value.
+# This prevents AttributeError crashes.
 if 'setup_complete' not in st.session_state:
     st.session_state.setup_complete = False
     st.session_state.org_nr = ""
+    st.session_state.startup_name = ""
+    st.session_state.business_description = ""
+    st.session_state.website = ""
+    st.session_state.sector = ""
+    st.session_state.employees = 0
+    st.session_state.mapped_sdgs = {}
+    st.session_state.prioritized_sdgs = []
+    st.session_state.goals_and_kpis = {}
+    st.session_state.integration_plan = {}
+    st.session_state.reporting_framework = "Not Selected"
 
 # --- APP LAYOUT AND PAGES ---
 st.set_page_config(page_title="SDG Startup Tool", layout="wide")
@@ -67,26 +67,16 @@ if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
     st.write("Enter your company's Norwegian Organisation Number to begin.")
 
-    # UPDATED: start_analysis callback now initializes the new state variables
     def start_analysis():
         if st.session_state.org_nr:
             with st.spinner("Fetching and translating data..."):
                 fetched_data = fetch_brreg_data(st.session_state.org_nr)
                 if isinstance(fetched_data, dict):
-                    # Populate all necessary state variables, including the new ones
                     st.session_state.startup_name = fetched_data['name']
                     st.session_state.business_description = fetched_data['description_en']
                     st.session_state.website = fetched_data['website']
                     st.session_state.sector = fetched_data['sector']
                     st.session_state.employees = fetched_data['employees']
-
-                    # Initialize the rest of the app's state
-                    st.session_state.mapped_sdgs = {}
-                    st.session_state.prioritized_sdgs = []
-                    st.session_state.goals_and_kpis = {}
-                    st.session_state.integration_plan = {}
-                    st.session_state.reporting_framework = "Not Selected"
-                    
                     st.session_state.setup_complete = True
                 else:
                     st.error(fetched_data)
@@ -110,21 +100,16 @@ else:
     st.title(f"SDG Tool for: {st.session_state.startup_name}")
     st.markdown("---")
     
-    # UPDATED: The "Home" page now displays the enhanced company profile
     if page == "🏠 Home":
         st.header("Company Profile")
-        
         col1, col2 = st.columns(2)
         with col1:
             st.metric(label="👥 Number of Employees", value=st.session_state.employees)
         with col2:
             st.markdown(f"**🌐 Website:** [{st.session_state.website}](http://{st.session_state.website})")
-        
         st.markdown(f"** sectoral Activity Sector:** {st.session_state.sector}")
-        
         st.subheader("Business Description (for SDG Mapping)")
         st.info(f"*{st.session_state.business_description}*")
-
 
     elif page == "1. Map SDGs":
         st.header("1. SDG Mapping & Relevance Assessment")
@@ -205,25 +190,25 @@ else:
     elif page == "6. Generate Report":
         st.header("📄 Final SDG Impact Report")
         st.subheader("1. Relevant SDGs")
-        if "mapped_sdgs" in st.session_state and st.session_state.mapped_sdgs:
+        if st.session_state.mapped_sdgs:
             for code, title in st.session_state.mapped_sdgs.items(): st.markdown(f"- **{code}:** {title}")
         else: st.info("Not yet defined.")
         st.subheader("2. Prioritized Impact Areas")
-        if "prioritized_sdgs" in st.session_state and st.session_state.prioritized_sdgs:
+        if st.session_state.prioritized_sdgs:
             for _, code, title in st.session_state.prioritized_sdgs: st.markdown(f"- {code}: {title}")
         else: st.info("Not yet defined.")
         st.subheader("3. Goals and KPIs")
-        if "goals_and_kpis" in st.session_state and st.session_state.goals_and_kpis:
+        if st.session_state.goals_and_kpis:
             for code, data in st.session_state.goals_and_kpis.items():
                 st.markdown(f"**{code}**")
                 st.markdown(f"  - **Goal:** {data['goal']}")
                 st.markdown(f"  - **KPI:** {data['kpi']}")
         else: st.info("Not yet defined.")
         st.subheader("4. Strategy Integration")
-        if "integration_plan" in st.session_state and st.session_state.integration_plan:
+        if st.session_state.integration_plan:
             for code, data in st.session_state.integration_plan.items():
                 st.markdown(f"**{data['department']} Department**")
                 st.markdown(f"  - **Action for {code}:** {data['action_item']}")
         else: st.info("Not yet defined.")
         st.subheader("5. Reporting Framework Alignment")
-        st.markdown(f"- **Framework:** {st.session_state.get('reporting_framework', 'Not Selected')}")
+        st.markdown(f"- **Framework:** {st.session_state.reporting_framework}")
