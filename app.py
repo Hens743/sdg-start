@@ -1,7 +1,7 @@
-# app.py (Corrected Import & New Gemini Client)
+# app.py (Final Version with Updated Gemini Client)
 import streamlit as st
 import requests
-import google.generativeai as genai # CORRECTED import statement
+import google.generativeai as genai # Using the stable import
 import json
 from deep_translator import GoogleTranslator
 
@@ -24,7 +24,7 @@ def fetch_brreg_data(org_nr):
         name = data.get("navn", "Name not found.")
         description_no = " ".join(data["vedtektsfestetFormaal"]) if "vedtektsfestetFormaal" in data and data["vedtektsfestetFormaal"] else "No official purpose found."
         description_en = translate_to_english(description_no)
-        website = data.get("hjemeside", "Not available")
+        website = data.get("hjemmeside", "Not available")
         sector = data.get("naeringskode1", {}).get("beskrivelse", "Not available")
         employees = data.get("antallAnsatte", 0)
         return {"name": name, "description_no": description_no, "description_en": description_en, "website": website, "sector": sector, "employees": employees}
@@ -33,11 +33,12 @@ def fetch_brreg_data(org_nr):
     except requests.exceptions.RequestException as e:
         return f"Error: Could not connect to the API. {e}"
 
-# --- UPDATED: AI-powered SDG analysis using the new Gemini Client pattern ---
+# --- UPDATED: AI-powered SDG analysis using the latest Gemini Client pattern ---
 def analyze_sdgs_with_ai(description):
     """Uses Google's Gemini model via the Client API to analyze a business description."""
     try:
         # The client will automatically use the GEMINI_API_KEY from st.secrets
+        # This is equivalent to genai.configure(api_key=...)
         client = genai.Client()
     except Exception as e:
         st.error(f"Error initializing Gemini Client. Is your API key in Streamlit Secrets? Details: {e}")
@@ -58,12 +59,12 @@ def analyze_sdgs_with_ai(description):
     generation_config = genai.GenerationConfig(response_mime_type="application/json")
 
     try:
-        response = client.generate_content(
-            model="gemini-2.5-flash", # Corrected model name
+        # Using the client.models.generate_content pattern from the documentation
+        response = client.models.generate_content(
+            model="gemini-1.5-flash", 
             contents=prompt,
             generation_config=generation_config
         )
-        # The response text should be a valid JSON string
         return json.loads(response.text)
     except Exception as e:
         st.error(f"An error occurred with the Gemini AI analysis: {e}")
