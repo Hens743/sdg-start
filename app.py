@@ -61,7 +61,7 @@ def analyze_sdgs_with_ai(description):
     try:
         # Using the client.models.generate_content pattern from the documentation
         response = client.models.generate_content(
-            model="gemini-1.5-flash", 
+            model="gemini-2.5-flash", 
             contents=prompt,
             generation_config=generation_config
         )
