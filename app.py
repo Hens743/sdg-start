@@ -1,82 +1,44 @@
-# app.py
+# app.py (Final Version)
 import streamlit as st
 import requests
 from deep_translator import GoogleTranslator
 
 # --- DATA AND LOGIC ---
-
-# Expanded SDG keyword dictionary (in English) for mapping
 SDG_DATA = {
-    "SDG 7": {
-        "title": "Affordable and Clean Energy",
-        "keywords": ["energy", "renewable", "solar", "wind", "clean power", "electricity", "grid", "hydro", "geothermal"]
-    },
-    "SDG 9": {
-        "title": "Industry, Innovation, and Infrastructure",
-        "keywords": ["innovation", "infrastructure", "technology", "startup", "industrial", "internet", "manufacturing", "entrepreneurship"]
-    },
-    "SDG 11": {
-        "title": "Sustainable Cities and Communities",
-        "keywords": ["cities", "urban", "sustainability", "community", "housing", "transport", "public spaces", "smart city", "resilience"]
-    },
-    "SDG 12": {
-        "title": "Responsible Consumption and Production",
-        "keywords": ["sustainability", "recycling", "circular economy", "efficiency", "waste", "supply chain", "production", "consumption"]
-    },
-    "SDG 13": {
-        "title": "Climate Action",
-        "keywords": ["climate", "emissions", "renewable", "carbon footprint", "greenhouse gas", "adaptation", "fossil fuels"]
-    },
+    "SDG 7": {"title": "Affordable and Clean Energy", "keywords": ["energy", "renewable", "solar", "wind", "clean power", "electricity", "grid", "hydro", "geothermal"]},
+    "SDG 9": {"title": "Industry, Innovation, and Infrastructure", "keywords": ["innovation", "infrastructure", "technology", "startup", "industrial", "internet", "manufacturing", "entrepreneurship"]},
+    "SDG 11": {"title": "Sustainable Cities and Communities", "keywords": ["cities", "urban", "sustainability", "community", "housing", "transport", "public spaces", "smart city", "resilience"]},
+    "SDG 12": {"title": "Responsible Consumption and Production", "keywords": ["sustainability", "recycling", "circular economy", "efficiency", "waste", "supply chain", "production", "consumption"]},
+    "SDG 13": {"title": "Climate Action", "keywords": ["climate", "emissions", "renewable", "carbon footprint", "greenhouse gas", "adaptation", "fossil fuels"]},
 }
 
 # --- HELPER FUNCTIONS ---
-
 def translate_to_english(text, source_lang='no', target_lang='en'):
-    """Translates text to English, handling potential errors."""
-    if not text:
-        return ""
-    try:
-        return GoogleTranslator(source=source_lang, target=target_lang).translate(text)
+    if not text: return ""
+    try: return GoogleTranslator(source=source_lang, target=target_lang).translate(text)
     except Exception as e:
         st.warning(f"Translation failed: {e}. Using original text.")
         return text
 
 def fetch_brreg_data(org_nr):
-    """Fetches data from Brønnøysundregistrene and translates the description."""
-    if not org_nr.isdigit() or len(org_nr) != 9:
-        return "Error: Please enter a valid 9-digit organisation number."
-
+    if not org_nr.isdigit() or len(org_nr) != 9: return "Error: Please enter a valid 9-digit organisation number."
     url = f"https://data.brreg.no/enhetsregisteret/api/enheter/{org_nr}"
     try:
         response = requests.get(url, timeout=10)
-        response.raise_for_status() # Raise an error for bad status codes (4xx or 5xx)
-        
+        response.raise_for_status()
         data = response.json()
         name = data.get("navn", "Name not found.")
-        
-        description_no = "No official purpose found."
-        # Logic to find the business description, which is a list of strings
-        if "vedtektsfestetFormaal" in data and data["vedtektsfestetFormaal"]:
-            description_no = " ".join(data["vedtektsfestetFormaal"])
-        
+        description_no = " ".join(data["vedtektsfestetFormaal"]) if "vedtektsfestetFormaal" in data and data["vedtektsfestetFormaal"] else "No official purpose found."
         description_en = translate_to_english(description_no)
-        
-        return {
-            "name": name, 
-            "description_no": description_no,
-            "description_en": description_en
-        }
+        return {"name": name, "description_no": description_no, "description_en": description_en}
     except requests.exceptions.HTTPError as e:
-         if e.response.status_code == 404:
-            return "Error: Organisation number not found."
-         else:
-            return f"Error: API returned status code {e.response.status_code}."
+        return f"Error: Organisation number not found or API error ({e.response.status_code})."
     except requests.exceptions.RequestException as e:
         return f"Error: Could not connect to the API. {e}"
 
 # --- STATE MANAGEMENT INITIALIZATION ---
-
-if 'startup_name' not in st.session_state:
+if 'setup_complete' not in st.session_state:
+    st.session_state.setup_complete = False
     st.session_state.startup_name = ""
     st.session_state.org_nr = ""
     st.session_state.business_description = ""
@@ -85,28 +47,23 @@ if 'startup_name' not in st.session_state:
     st.session_state.goals_and_kpis = {}
     st.session_state.integration_plan = {}
     st.session_state.reporting_framework = "Not Selected"
-    st.session_state.setup_complete = False
 
 # --- APP LAYOUT AND PAGES ---
-
 st.set_page_config(page_title="SDG Startup Tool", layout="wide")
 st.sidebar.title("🚀 SDG Tool Navigation")
 
 # ==============================================================================
-# PAGE 1: SETUP PAGE (CORRECTED WITH CALLBACK)
+# PAGE 1: SETUP PAGE
 # ==============================================================================
 if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
     st.write("Enter your startup's details manually or fetch them from Brønnøysundregistrene.")
 
-    # --- NEW: Callback function to handle the API call and state updates ---
     def update_state_from_api():
-        """This function is called when the button is clicked."""
         if st.session_state.org_nr:
             with st.spinner("Fetching and translating data..."):
                 fetched_data = fetch_brreg_data(st.session_state.org_nr)
                 if isinstance(fetched_data, dict):
-                    # Update the session state directly inside the callback
                     st.session_state.startup_name = fetched_data['name']
                     st.session_state.business_description = fetched_data['description_en']
                     st.success("Information fetched and translated successfully!")
@@ -116,35 +73,22 @@ if not st.session_state.setup_complete:
         else:
             st.warning("Please enter an Organisation Number before fetching.")
 
-    # --- WIDGET DEFINITIONS ---
     st.text_input("Startup Name", key="startup_name")
     st.text_input("Norwegian Organisation Number", key="org_nr")
     st.caption("Enter the 9-digit number without any spaces or letters.")
-
-    # --- BUTTON WITH CALLBACK ---
-    # The button now calls the update_state_from_api function when clicked.
-    st.button(
-        "🤖 Fetch & Translate Information",
-        on_click=update_state_from_api
-    )
-    
-    st.info(
-        "**Tip:** Use clear keywords about your industry, products, and services "
-        "(e.g., 'solar energy', 'recycling technology', 'sustainable housing')."
-    )
-    
-    st.text_area(
-        "Business Description (in English for SDG Mapping)",
-        key="business_description",
-        height=150
-    )
+    st.button("🤖 Fetch & Translate Information", on_click=update_state_from_api)
+    st.info("**Tip:** Use clear keywords about your industry, products, and services.")
+    st.text_area("Business Description (in English for SDG Mapping)", key="business_description", height=150)
 
     if st.button("Save and Continue"):
         if st.session_state.startup_name and st.session_state.business_description:
             st.session_state.setup_complete = True
-            st.rerun()
+            # CRITICAL FIX: The st.rerun() call is removed from here.
+            # Streamlit will automatically rerun after the button click,
+            # allowing the state change to be safely processed.
         else:
             st.error("Please ensure Startup Name and Business Description are filled in.")
+
 # ==============================================================================
 # MAIN APPLICATION PAGES
 # ==============================================================================
@@ -162,7 +106,7 @@ else:
         st.header("Welcome!")
         st.write("Navigate through the steps using the menu on the left.")
         st.info(f"**Current Business Description:** *'{st.session_state.business_description}'*")
-
+    
     elif page == "1. Map SDGs":
         st.header("1. SDG Mapping & Relevance Assessment")
         description_words = st.session_state.business_description.lower().split()
@@ -171,7 +115,6 @@ else:
             if any(keyword in description_words for keyword in data["keywords"]):
                 mapped[code] = data["title"]
         st.session_state.mapped_sdgs = mapped
-
         if not st.session_state.mapped_sdgs:
             st.warning("No relevant SDGs found based on your business description.")
         else:
