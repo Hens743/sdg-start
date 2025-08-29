@@ -93,34 +93,49 @@ st.set_page_config(page_title="SDG Startup Tool", layout="wide")
 st.sidebar.title("🚀 SDG Tool Navigation")
 
 # ==============================================================================
-# PAGE 1: SETUP PAGE
+# PAGE 1: SETUP PAGE (REVISED AND CORRECTED)
 # ==============================================================================
 if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
     st.write("Enter your startup's details manually or fetch them from Brønnøysundregistrene.")
 
-    st.session_state.startup_name = st.text_input("Startup Name", st.session_state.startup_name)
-    st.session_state.org_nr = st.text_input("Norwegian Organisation Number", st.session_state.org_nr)
+    # CORRECTED: Use the 'key' parameter to bind widgets directly to the session state.
+    # This ensures that when the state is updated, the widget's value changes automatically.
+    st.text_input(
+        "Startup Name",
+        key="startup_name"
+    )
+    
+    st.text_input(
+        "Norwegian Organisation Number",
+        key="org_nr"
+    )
     st.caption("Enter the 9-digit number without any spaces or letters.")
 
     if st.button("🤖 Fetch & Translate Information"):
-        with st.spinner("Fetching and translating data..."):
-            fetched_data = fetch_brreg_data(st.session_state.org_nr)
-            if isinstance(fetched_data, dict):
-                st.session_state.startup_name = fetched_data['name']
-                st.session_state.business_description = fetched_data['description_en']
-                st.success("Information fetched and translated successfully!")
-                st.info(f"**Original Description (Norwegian):** {fetched_data['description_no']}")
-            else:
-                st.error(fetched_data)
+        if st.session_state.org_nr: # Check if the org number field is not empty
+            with st.spinner("Fetching and translating data..."):
+                fetched_data = fetch_brreg_data(st.session_state.org_nr)
+                if isinstance(fetched_data, dict):
+                    # This now correctly updates the state, and the widgets above will reflect the change
+                    st.session_state.startup_name = fetched_data['name']
+                    st.session_state.business_description = fetched_data['description_en']
+                    st.success("Information fetched and translated successfully!")
+                    st.info(f"**Original Description (Norwegian):** {fetched_data['description_no']}")
+                else:
+                    st.error(fetched_data)
+        else:
+            st.warning("Please enter an Organisation Number before fetching.")
     
     st.info(
         "**Tip:** Use clear keywords about your industry, products, and services "
         "(e.g., 'solar energy', 'recycling technology', 'sustainable housing')."
     )
-    st.session_state.business_description = st.text_area(
+    
+    st.text_area(
         "Business Description (in English for SDG Mapping)",
-        st.session_state.business_description, height=150
+        key="business_description",
+        height=150
     )
 
     if st.button("Save and Continue"):
