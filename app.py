@@ -1,18 +1,33 @@
+# Save this code as app.py
 import streamlit as st
 
 # --- Data and Logic ---
 
-# A simplified dictionary of SDGs with keywords for mapping
+# NEW: Expanded SDG_DATA dictionary for better matching
 SDG_DATA = {
-    "SDG 7": {"title": "Affordable and Clean Energy", "keywords": ["energy", "renewable", "solar", "wind", "clean power"]},
-    "SDG 9": {"title": "Industry, Innovation, and Infrastructure", "keywords": ["innovation", "infrastructure", "technology", "startup"]},
-    "SDG 11": {"title": "Sustainable Cities and Communities", "keywords": ["cities", "urban", "sustainability", "community"]},
-    "SDG 12": {"title": "Responsible Consumption and Production", "keywords": ["sustainability", "recycling", "circular economy", "efficiency"]},
-    "SDG 13": {"title": "Climate Action", "keywords": ["climate", "emissions", "renewable", "carbon footprint"]},
+    "SDG 7": {
+        "title": "Affordable and Clean Energy",
+        "keywords": ["energy", "renewable", "solar", "wind", "clean power", "electricity", "grid", "hydro", "geothermal"]
+    },
+    "SDG 9": {
+        "title": "Industry, Innovation, and Infrastructure",
+        "keywords": ["innovation", "infrastructure", "technology", "startup", "industrial", "internet", "manufacturing", "entrepreneurship"]
+    },
+    "SDG 11": {
+        "title": "Sustainable Cities and Communities",
+        "keywords": ["cities", "urban", "sustainability", "community", "housing", "transport", "public spaces", "smart city", "resilience"]
+    },
+    "SDG 12": {
+        "title": "Responsible Consumption and Production",
+        "keywords": ["sustainability", "recycling", "circular economy", "efficiency", "waste", "supply chain", "production", "consumption"]
+    },
+    "SDG 13": {
+        "title": "Climate Action",
+        "keywords": ["climate", "emissions", "renewable", "carbon footprint", "greenhouse gas", "adaptation", "fossil fuels"]
+    },
 }
 
 # --- State Management ---
-# Initialize session_state variables to store data across user interactions
 if 'startup_name' not in st.session_state:
     st.session_state.startup_name = ""
     st.session_state.business_description = ""
@@ -29,11 +44,10 @@ st.set_page_config(page_title="SDG Startup Tool", layout="wide")
 
 st.sidebar.title("🚀 SDG Tool Navigation")
 
-# Display the setup page first, then the main menu
 if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
     st.write("Please enter your startup's details to begin.")
-
+    
     name = st.text_input("Startup Name", st.session_state.startup_name)
     description = st.text_area("Business Description", st.session_state.business_description, height=150)
 
@@ -42,11 +56,10 @@ if not st.session_state.setup_complete:
             st.session_state.startup_name = name
             st.session_state.business_description = description
             st.session_state.setup_complete = True
-            st.rerun() # Rerun the script to show the main menu
+            st.rerun()
         else:
             st.error("Please fill in both fields.")
 else:
-    # Main menu in the sidebar
     page = st.sidebar.radio(
         "Choose a step:",
         [
@@ -71,8 +84,7 @@ else:
     elif page == "1. Map SDGs":
         st.header("1. SDG Mapping & Relevance Assessment")
         st.write("This step maps your business description to relevant SDGs.")
-
-        # Mapping Logic
+        
         description_words = st.session_state.business_description.lower().split()
         mapped = {}
         for code, data in SDG_DATA.items():
