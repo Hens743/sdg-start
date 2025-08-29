@@ -1,9 +1,9 @@
-# Save this code as app.py
 import streamlit as st
+import requests # New library for making API calls
 
 # --- Data and Logic ---
 
-# NEW: Expanded SDG_DATA dictionary for better matching
+# Expanded SDG_DATA dictionary for better matching
 SDG_DATA = {
     "SDG 7": {
         "title": "Affordable and Clean Energy",
@@ -27,9 +27,31 @@ SDG_DATA = {
     },
 }
 
+# --- NEW: Function to fetch data from Brønnøysundregistrene ---
+def fetch_brreg_data(org_nr):
+    """Fetches business description from the Brønnøysundregistrene API."""
+    if not org_nr.isdigit() or len(org_nr) != 9:
+        return "Error: Please enter a valid 9-digit organisation number."
+
+    url = f"https://data.brreg.no/enhetsregisteret/api/enheter/{org_nr}"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            # The 'formal' (purpose) is often nested. We look for it.
+            purpose = data.get("formal", {}).get("virksomhet", "No official purpose found.")
+            return purpose if purpose else "No official purpose found."
+        elif response.status_code == 404:
+            return "Error: Organisation number not found."
+        else:
+            return f"Error: API returned status code {response.status_code}."
+    except requests.exceptions.RequestException as e:
+        return f"Error: Could not connect to the API. {e}"
+
 # --- State Management ---
 if 'startup_name' not in st.session_state:
     st.session_state.startup_name = ""
+    st.session_state.org_nr = ""
     st.session_state.business_description = ""
     st.session_state.mapped_sdgs = {}
     st.session_state.prioritized_sdgs = []
@@ -41,41 +63,52 @@ if 'startup_name' not in st.session_state:
 # --- App Layout and Pages ---
 
 st.set_page_config(page_title="SDG Startup Tool", layout="wide")
-
 st.sidebar.title("🚀 SDG Tool Navigation")
 
 if not st.session_state.setup_complete:
     st.title("Welcome to the SDG Startup Tool")
-    st.write("Please enter your startup's details to begin.")
-    
-    name = st.text_input("Startup Name", st.session_state.startup_name)
-    description = st.text_area("Business Description", st.session_state.business_description, height=150)
+    st.write("Enter your startup's details manually or fetch them from Brønnøysundregistrene.")
+
+    # --- NEW: Updated setup section with API integration ---
+    st.session_state.startup_name = st.text_input("Startup Name", st.session_state.startup_name)
+    st.session_state.org_nr = st.text_input("Norwegian Organisation Number (9 digits)", st.session_state.org_nr)
+
+    if st.button("🤖 Fetch Information from Brønnøysundregistrene"):
+        with st.spinner("Fetching data..."):
+            fetched_description = fetch_brreg_data(st.session_state.org_nr)
+            if "Error:" not in fetched_description:
+                st.session_state.business_description = fetched_description
+                st.success("Information fetched successfully!")
+            else:
+                st.error(fetched_description)
+
+    st.info(
+        "**How to write a good description:** Use clear keywords about your industry, "
+        "products, and services (e.g., 'solar energy', 'recycling technology', 'sustainable housing')."
+    )
+    st.session_state.business_description = st.text_area(
+        "Business Description (fetched data can be edited here)",
+        st.session_state.business_description, height=150
+    )
 
     if st.button("Save and Continue"):
-        if name and description:
-            st.session_state.startup_name = name
-            st.session_state.business_description = description
+        if st.session_state.startup_name and st.session_state.business_description:
             st.session_state.setup_complete = True
             st.rerun()
         else:
-            st.error("Please fill in both fields.")
+            st.error("Please ensure Startup Name and Business Description are filled in.")
 else:
+    # The rest of the app pages remain the same as before
     page = st.sidebar.radio(
         "Choose a step:",
-        [
-            "🏠 Home",
-            "1. Map SDGs",
-            "2. Prioritize SDGs",
-            "3. Set Goals & KPIs",
-            "4. Integrate Strategy",
-            "5. Select Framework",
-            "6. Generate Report",
-        ]
+        ["🏠 Home", "1. Map SDGs", "2. Prioritize SDGs", "3. Set Goals & KPIs",
+         "4. Integrate Strategy", "5. Select Framework", "6. Generate Report"]
     )
-
     st.title(f"SDG Tool for: {st.session_state.startup_name}")
     st.markdown("---")
-
+    
+    # ... (The code for the different pages from the previous version goes here) ...
+    # ... (This part is unchanged) ...
     if page == "🏠 Home":
         st.header("Welcome!")
         st.write("You can navigate through the different steps using the menu on the left.")
