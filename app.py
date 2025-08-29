@@ -1,18 +1,12 @@
-# app.py (With Robust Initialization)
+# app.py (Gemini-Powered Version)
 import streamlit as st
 import requests
+import google.generativeai as genai
+import json
 from deep_translator import GoogleTranslator
 
-# --- DATA AND LOGIC ---
-SDG_DATA = {
-    "SDG 7": {"title": "Affordable and Clean Energy", "keywords": ["energy", "renewable", "solar", "wind", "clean power", "electricity", "grid", "hydro", "geothermal"]},
-    "SDG 9": {"title": "Industry, Innovation, and Infrastructure", "keywords": ["innovation", "infrastructure", "technology", "startup", "industrial", "internet", "manufacturing", "entrepreneurship"]},
-    "SDG 11": {"title": "Sustainable Cities and Communities", "keywords": ["cities", "urban", "sustainability", "community", "housing", "transport", "public spaces", "smart city", "resilience"]},
-    "SDG 12": {"title": "Responsible Consumption and Production", "keywords": ["sustainability", "recycling", "circular economy", "efficiency", "waste", "supply chain", "production", "consumption"]},
-    "SDG 13": {"title": "Climate Action", "keywords": ["climate", "emissions", "renewable", "carbon footprint", "greenhouse gas", "adaptation", "fossil fuels"]},
-}
-
 # --- HELPER FUNCTIONS ---
+
 def translate_to_english(text, source_lang='no', target_lang='en'):
     if not text: return ""
     try: return GoogleTranslator(source=source_lang, target=target_lang).translate(text)
@@ -39,9 +33,40 @@ def fetch_brreg_data(org_nr):
     except requests.exceptions.RequestException as e:
         return f"Error: Could not connect to the API. {e}"
 
-# --- UPDATED: Robust State Management Initialization ---
-# We now initialize every key the app will use with a default value.
-# This prevents AttributeError crashes.
+# --- UPDATED: AI-powered SDG analysis using Gemini ---
+def analyze_sdgs_with_ai(description):
+    """Uses Google's Gemini model to analyze a business description for relevant SDGs."""
+    try:
+        # Configure the Gemini API key from Streamlit Secrets
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    except KeyError:
+        st.error("Gemini API key not found. Please add it to your Streamlit Secrets.")
+        return {}
+
+    prompt = f"""
+    You are an expert in sustainability and the UN Sustainable Development Goals (SDGs).
+    Analyze the following business description and identify the 3 to 5 most relevant SDGs.
+
+    Business Description: "{description}"
+
+    Your response must be a valid JSON object. The keys should be the SDG code (e.g., "SDG 7")
+    and the values should be the full official title of that SDG (e.g., "Affordable and Clean Energy").
+    Do not include any text or explanations outside of the JSON object.
+    """
+    
+    # Configure the model to return JSON
+    generation_config = genai.GenerationConfig(response_mime_type="application/json")
+    model = genai.GenerativeModel('gemini-1.5-flash', generation_config=generation_config)
+
+    try:
+        response = model.generate_content(prompt)
+        # The Gemini response text is directly a JSON string
+        return json.loads(response.text)
+    except Exception as e:
+        st.error(f"An error occurred with the Gemini AI analysis: {e}")
+        return {}
+
+# --- STATE MANAGEMENT INITIALIZATION ---
 if 'setup_complete' not in st.session_state:
     st.session_state.setup_complete = False
     st.session_state.org_nr = ""
@@ -61,25 +86,30 @@ st.set_page_config(page_title="SDG Startup Tool", layout="wide")
 st.sidebar.title("🚀 SDG Tool Navigation")
 
 # ==============================================================================
-# PAGE 1: SIMPLIFIED SETUP PAGE
+# PAGE 1: SETUP PAGE
 # ==============================================================================
 if not st.session_state.setup_complete:
-    st.title("Welcome to the SDG Startup Tool")
+    st.title("Welcome to the AI-Powered SDG Startup Tool")
     st.write("Enter your company's Norwegian Organisation Number to begin.")
 
     def start_analysis():
         if st.session_state.org_nr:
-            with st.spinner("Fetching and translating data..."):
+            with st.spinner("Fetching and translating company data..."):
                 fetched_data = fetch_brreg_data(st.session_state.org_nr)
-                if isinstance(fetched_data, dict):
-                    st.session_state.startup_name = fetched_data['name']
-                    st.session_state.business_description = fetched_data['description_en']
-                    st.session_state.website = fetched_data['website']
-                    st.session_state.sector = fetched_data['sector']
-                    st.session_state.employees = fetched_data['employees']
-                    st.session_state.setup_complete = True
-                else:
-                    st.error(fetched_data)
+            
+            if isinstance(fetched_data, dict):
+                st.session_state.startup_name = fetched_data['name']
+                st.session_state.business_description = fetched_data['description_en']
+                st.session_state.website = fetched_data['website']
+                st.session_state.sector = fetched_data['sector']
+                st.session_state.employees = fetched_data['employees']
+
+                with st.spinner("🤖 Gemini AI is analyzing your business..."):
+                    st.session_state.mapped_sdgs = analyze_sdgs_with_ai(st.session_state.business_description)
+
+                st.session_state.setup_complete = True
+            else:
+                st.error(fetched_data)
         else:
             st.warning("Please enter an Organisation Number.")
 
@@ -112,42 +142,28 @@ else:
         st.info(f"*{st.session_state.business_description}*")
 
     elif page == "1. Map SDGs":
-        st.header("1. SDG Mapping & Relevance Assessment")
-        description_words = st.session_state.business_description.lower().split()
-        mapped = {}
-        for code, data in SDG_DATA.items():
-            if any(keyword in description_words for keyword in data["keywords"]):
-                mapped[code] = data["title"]
-        st.session_state.mapped_sdgs = mapped
+        st.header("1. AI-Powered SDG Mapping & Relevance Assessment")
+        
         if not st.session_state.mapped_sdgs:
-            st.warning("No relevant SDGs found based on your business description.")
+            st.warning("The AI analysis did not find any relevant SDGs or an error occurred.")
         else:
-            st.success(f"Found {len(st.session_state.mapped_sdgs)} relevant SDGs:")
+            st.success(f"The AI has identified {len(st.session_state.mapped_sdgs)} relevant SDGs for your business:")
             for code, title in st.session_state.mapped_sdgs.items():
                 st.markdown(f"- **{code}:** {title}")
 
     elif page == "2. Prioritize SDGs":
         st.header("2. Prioritization & Impact Analysis")
         if not st.session_state.mapped_sdgs:
-            st.warning("Please run Step 1 to map your SDGs first.")
+            st.warning("Please run the analysis on the Home page first.")
         else:
-            scored_sdgs = []
-            description_words = st.session_state.business_description.lower().split()
-            for code, title in st.session_state.mapped_sdgs.items():
-                relevance = sum(1 for keyword in SDG_DATA[code]["keywords"] if keyword in description_words)
-                opportunity = len(title) % 5
-                total_score = relevance + opportunity
-                scored_sdgs.append((total_score, code, title))
-            scored_sdgs.sort(reverse=True)
-            st.session_state.prioritized_sdgs = scored_sdgs
-            st.write("Here are your relevant SDGs, prioritized by a simulated impact score:")
-            for i, (score, code, title) in enumerate(st.session_state.prioritized_sdgs):
-                st.metric(label=f"{i+1}. {code}", value=title, delta=f"Score: {score}")
-
+            st.write("Based on the AI analysis, here are your most impactful SDGs:")
+            for i, (code, title) in enumerate(st.session_state.mapped_sdgs.items()):
+                 st.metric(label=f"Priority {i+1}", value=code, delta=title, delta_color="off")
+    
     elif page == "3. Set Goals & KPIs":
         st.header("3. Goal Setting & KPIs")
         if not st.session_state.mapped_sdgs:
-            st.warning("Please run Step 1 to map your SDGs first.")
+            st.warning("No SDGs have been mapped yet.")
         else:
             sdg_options = list(st.session_state.mapped_sdgs.keys())
             selected_sdg = st.selectbox("Select an SDG to set a goal for:", options=sdg_options)
@@ -194,8 +210,8 @@ else:
             for code, title in st.session_state.mapped_sdgs.items(): st.markdown(f"- **{code}:** {title}")
         else: st.info("Not yet defined.")
         st.subheader("2. Prioritized Impact Areas")
-        if st.session_state.prioritized_sdgs:
-            for _, code, title in st.session_state.prioritized_sdgs: st.markdown(f"- {code}: {title}")
+        if st.session_state.mapped_sdgs:
+            for code, title in st.session_state.mapped_sdgs.items(): st.markdown(f"- {code}: {title}")
         else: st.info("Not yet defined.")
         st.subheader("3. Goals and KPIs")
         if st.session_state.goals_and_kpis:
